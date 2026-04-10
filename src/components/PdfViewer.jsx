@@ -14,19 +14,22 @@ export function PdfViewer({ book }) {
   const canvasRef = useRef(null);
   const [pdfDoc, setPdfDoc] = useState(null);
   const [pageNumber, setPageNumber] = useState(book.currentPage || 1);
-  const [scale, setScale] = useState(1.5);
+  const [scale, setScale] = useState(book.zoomScale ?? 1.5);
   const [pdfError, setPdfError] = useState(null);
   const renderTaskRef = useRef(null);
 
-  const fileUrl = useMemo(() => {
-    return URL.createObjectURL(book.fileBlob);
-  }, [book.fileBlob]);
+  const [fileUrl, setFileUrl] = useState(null);
 
   useEffect(() => {
-    return () => URL.revokeObjectURL(fileUrl);
-  }, [fileUrl]);
+    if (!book.fileBlob) return;
+    const url = URL.createObjectURL(book.fileBlob);
+    setFileUrl(url);
+    return () => URL.revokeObjectURL(url);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run only once per mount
 
   useEffect(() => {
+    if (!fileUrl) return;
     let active = true;
     const loadPdf = async () => {
       try {
@@ -43,7 +46,8 @@ export function PdfViewer({ book }) {
     };
     loadPdf();
     return () => { active = false; };
-  }, [fileUrl, book.currentPage]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fileUrl]);
 
   const renderPage = useCallback(async (num, doc, currentScale) => {
     if (!doc || !canvasRef.current) return;
@@ -84,6 +88,26 @@ export function PdfViewer({ book }) {
     }
   }, [pdfDoc, pageNumber, scale, renderPage]);
 
+  // Keyboard navigation: ← / → arrow keys
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ignore when focus is inside a text-editable element
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable) return;
+
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        changePage(1);
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        changePage(-1);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageNumber, pdfDoc]);
+
   // Handle page changes
   const changePage = async (offset) => {
     if (!pdfDoc) return;
@@ -100,8 +124,20 @@ export function PdfViewer({ book }) {
     }
   };
 
-  const handleZoomIn = () => setScale(s => Math.min(s + 0.25, 3.0));
-  const handleZoomOut = () => setScale(s => Math.max(s - 0.25, 0.5));
+  const saveZoom = (newScale) => {
+    db.books.update(book.id, { zoomScale: newScale });
+  };
+
+  const handleZoomIn = () => setScale(s => {
+    const next = Math.min(s + 0.25, 3.0);
+    saveZoom(next);
+    return next;
+  });
+  const handleZoomOut = () => setScale(s => {
+    const next = Math.max(s - 0.25, 0.5);
+    saveZoom(next);
+    return next;
+  });
   const handleJump = (e) => {
     if (e.key === 'Enter') {
       const val = parseInt(e.target.value);
@@ -116,75 +152,147 @@ export function PdfViewer({ book }) {
   };
 
   if (pdfError) {
-    return <div className="p-8 text-center text-red-500 flex flex-col items-center">
-      <div className="w-16 h-16 bg-red-100 rounded-full flex justify-center items-center mb-4">
-        <FileText className="w-8 h-8 text-red-500" />
+    return <div className="p-8 text-center text-accent flex flex-col items-center">
+      <div className="w-16 h-16 bg-bg-tertiary rounded-full flex justify-center items-center mb-4 border border-border-warm shadow-card">
+        <FileText className="w-8 h-8 text-accent" />
       </div>
       Failed to load PDF: {pdfError}
     </div>;
   }
 
+  const toolbarBtn = {
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    width: '28px', height: '28px', borderRadius: '5px',
+    background: 'transparent', border: 'none', cursor: 'pointer',
+    color: 'var(--text-secondary)', transition: 'background 0.15s, color 0.15s',
+  };
+
   return (
-    <div className="flex flex-col h-full bg-[#323639]">
-      <div className="h-12 flex-none bg-[#323639] border-b border-[#2b2d2f] shadow-md flex items-center justify-between px-4 z-20 text-gray-200">
-        <div className="flex items-center gap-1 bg-[#424649] rounded-lg p-1">
-          <button 
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 4px 24px var(--shadow)', background: 'var(--surface)' }}>
+      {/* Toolbar */}
+      <div style={{
+        height: '48px', flexShrink: 0,
+        background: 'var(--bg-secondary)',
+        borderBottom: '1px solid var(--border)',
+        display: 'flex', alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '0 14px', gap: '10px', zIndex: 20,
+      }}>
+        {/* Page nav */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '2px',
+          background: 'var(--bg-tertiary)',
+          border: '1px solid var(--border)',
+          borderRadius: '7px', padding: '2px',
+          boxShadow: 'inset 0 1px 3px var(--shadow)',
+        }}>
+          <button
             onClick={() => changePage(-1)}
             disabled={pageNumber <= 1}
-            className="p-1 hover:bg-[#525659] rounded disabled:opacity-50 transition-colors"
+            style={{ ...toolbarBtn, opacity: pageNumber <= 1 ? 0.35 : 1 }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-primary)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
           >
-            <ChevronLeft className="w-5 h-5" />
+            <ChevronLeft size={16} />
           </button>
-          <div className="flex items-center gap-2 px-2 text-sm font-medium">
-            <input 
-               type="text" 
-               defaultValue={pageNumber} 
-               key={pageNumber}
-               onKeyDown={handleJump}
-               className="w-12 text-center bg-[#2b2d2f] rounded border border-[#525659] py-0.5 focus:outline-none focus:border-purple-500 text-white" 
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0 6px' }}>
+            <input
+              type="text"
+              defaultValue={pageNumber}
+              key={pageNumber}
+              onKeyDown={handleJump}
+              style={{
+                width: '38px', textAlign: 'center',
+                background: 'var(--bg-primary)',
+                border: '1px solid var(--border)',
+                borderRadius: '4px', padding: '2px 4px',
+                fontFamily: '"Lora", serif', fontSize: '0.78rem',
+                color: 'var(--text-primary)', outline: 'none',
+                boxShadow: 'inset 0 1px 2px var(--shadow)',
+              }}
             />
-            <span className="text-gray-400">/ {book.totalPages}</span>
+            <span style={{ fontFamily: '"Lora", serif', fontStyle: 'italic', fontSize: '0.72rem', color: 'var(--text-muted)' }}>/ {book.totalPages}</span>
           </div>
-          <button 
+          <button
             onClick={() => changePage(1)}
             disabled={pdfDoc && pageNumber >= pdfDoc.numPages}
-            className="p-1 hover:bg-[#525659] rounded disabled:opacity-50 transition-colors"
+            style={{ ...toolbarBtn, opacity: (pdfDoc && pageNumber >= pdfDoc.numPages) ? 0.35 : 1 }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-primary)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
           >
-            <ChevronRight className="w-5 h-5" />
+            <ChevronRight size={16} />
           </button>
         </div>
 
-        <div className="flex items-center gap-1 bg-[#424649] rounded-lg p-1">
-          <button onClick={handleZoomOut} className="p-1.5 hover:bg-[#525659] rounded transition-colors" title="Zoom Out">
-            <ZoomOut className="w-4 h-4" />
+        {/* Zoom */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '2px',
+          background: 'var(--bg-tertiary)',
+          border: '1px solid var(--border)',
+          borderRadius: '7px', padding: '2px',
+          boxShadow: 'inset 0 1px 3px var(--shadow)',
+        }}>
+          <button
+            onClick={handleZoomOut}
+            style={toolbarBtn}
+            title="Zoom Out"
+            onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-primary)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+          >
+            <ZoomOut size={14} />
           </button>
-          <span className="text-xs font-mono w-12 text-center">{Math.round(scale * 100)}%</span>
-          <button onClick={handleZoomIn} className="p-1.5 hover:bg-[#525659] rounded transition-colors" title="Zoom In">
-            <ZoomIn className="w-4 h-4" />
+          <span style={{ fontFamily: '"Lora", serif', fontWeight: 700, fontSize: '0.72rem', color: 'var(--text-secondary)', width: '40px', textAlign: 'center' }}>
+            {Math.round(scale * 100)}%
+          </span>
+          <button
+            onClick={handleZoomIn}
+            style={toolbarBtn}
+            title="Zoom In"
+            onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-primary)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+          >
+            <ZoomIn size={14} />
           </button>
         </div>
 
-        <div>
-          <button onClick={() => containerRef.current?.requestFullscreen()} className="p-1.5 hover:bg-[#424649] rounded transition-colors" title="Fullscreen">
-            <Maximize className="w-5 h-5" />
-          </button>
-        </div>
+        {/* Fullscreen */}
+        <button
+          onClick={() => {
+            const el = document.getElementById('main-area') || containerRef.current;
+            if (document.fullscreenElement) document.exitFullscreen();
+            else el?.requestFullscreen();
+          }}
+          style={toolbarBtn}
+          title="Fullscreen"
+          onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-tertiary)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+        >
+          <Maximize size={15} />
+        </button>
       </div>
 
-      <div 
+      {/* PDF Canvas */}
+      <div
         ref={containerRef}
-        className="flex-1 overflow-auto bg-[#525659] flex justify-center p-4 custom-scrollbar"
+        className="scrollbar-vintage"
+        style={{ flex: 1, overflowY: 'auto', background: 'var(--surface)', display: 'flex', justifyContent: 'center', padding: '28px 20px' }}
       >
-        <div className="bg-white shadow-2xl relative min-w-min mx-auto my-0 select-text rounded-sm">
+        <div style={{ position: 'relative', minWidth: 'min-content', margin: '0 auto', boxShadow: '0 8px 40px rgba(0,0,0,0.35)', borderRadius: '1px' }}>
           {!pdfDoc && (
-             <div className="absolute inset-0 flex items-center justify-center bg-gray-100 flex-col gap-3">
-               <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
-               <span className="text-gray-500 font-medium">Loading Document...</span>
-             </div>
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', background: 'transparent' }}>
+              <div style={{ width: '32px', height: '32px', border: '3px solid var(--accent)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+              <span style={{ fontFamily: '"Lora", serif', fontStyle: 'italic', fontSize: '0.82rem', color: 'var(--text-muted)' }}>Opening manuscript…</span>
+            </div>
           )}
-          <canvas ref={canvasRef} className="block align-top" />
+          <canvas
+            ref={canvasRef}
+            style={{ display: 'block', verticalAlign: 'top' }}
+            className="mix-blend-multiply dark:mix-blend-normal dark:invert dark:hue-rotate-180 transition-[filter]"
+          />
         </div>
       </div>
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

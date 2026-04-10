@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStore } from '../store';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { PdfViewer } from './PdfViewer';
-import { BookOpen } from 'lucide-react';
+import { BookOpen, PenTool, X } from 'lucide-react';
 
 export function MainArea() {
   const selectedBookId = useStore((state) => state.selectedBookId);
@@ -12,28 +12,163 @@ export function MainArea() {
     [selectedBookId]
   );
 
+  const [showNotes, setShowNotes] = useState(false);
+  const [localNotes, setLocalNotes] = useState('');
+
+  useEffect(() => {
+    if (book) setLocalNotes(book.notes || '');
+  }, [book?.id]);
+
+  const handleNotesChange = (e) => setLocalNotes(e.target.value);
+  const handleNotesBlur = () => {
+    if (book && localNotes !== (book.notes || '')) {
+      db.books.update(book.id, { notes: localNotes });
+    }
+  };
+
   if (!selectedBookId || !book) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-gray-50/50">
-        <div className="w-24 h-24 bg-white shadow-sm rounded-full flex items-center justify-center mb-6">
-          <BookOpen className="w-10 h-10 text-purple-400" strokeWidth={1.5} />
+      <div className="flex-1 flex flex-col items-center justify-center relative overflow-hidden viewer-vignette" style={{ background: 'var(--bg-primary)' }}>
+        <div style={{
+          width: '96px', height: '96px',
+          borderRadius: '50%',
+          background: 'var(--bg-secondary)',
+          border: '3px solid var(--border)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          marginBottom: '28px',
+          boxShadow: '0 8px 32px var(--shadow)',
+        }}>
+          <BookOpen size={38} strokeWidth={1.3} style={{ color: 'var(--text-secondary)' }} />
         </div>
-        <h2 className="text-2xl font-semibold text-gray-800 tracking-tight">Select a book to start reading</h2>
-        <p className="text-gray-500 mt-2 text-sm">Or upload a new PDF to your library from the sidebar</p>
+        <h2 style={{
+          fontFamily: '"Lora", serif', fontWeight: 700, fontSize: '1.9rem',
+          color: 'var(--text-primary)', letterSpacing: '0.02em', marginBottom: '12px',
+          position: 'relative', zIndex: 2,
+        }}>Your reading room</h2>
+        <p style={{
+          fontFamily: '"Lora", serif', fontStyle: 'italic',
+          color: 'var(--text-muted)', fontSize: '0.9rem', maxWidth: '320px',
+          textAlign: 'center', lineHeight: 1.8, position: 'relative', zIndex: 2,
+        }}>
+          Select a volume from your library shelf, or deposit a new manuscript to begin reading.
+        </p>
       </div>
     );
   }
 
+  const percent = book.totalPages > 0 ? Math.round((book.currentPage / book.totalPages) * 100) : 0;
+
   return (
-    <div className="flex-1 flex flex-col min-w-0 bg-pdfbg">
-      <div className="h-14 flex-none bg-white border-b border-gray-200 flex items-center px-4 shadow-sm z-10 px-6 gap-4 justify-between">
-        <h2 className="font-semibold text-gray-800 truncate" title={book.title}>{book.title}</h2>
-        <div className="text-sm font-medium text-gray-500 bg-gray-100 py-1 px-3 rounded-full flex items-center">
-          {Math.round((book.currentPage / book.totalPages) * 100)}% Complete
+    <div id="main-area" className="flex-1 flex flex-col min-w-0 relative viewer-vignette" style={{ background: 'var(--bg-primary)' }}>
+      {/* Top bar */}
+      <div style={{
+        height: '52px', flexShrink: 0,
+        background: 'var(--bg-secondary)',
+        borderBottom: '1px solid var(--border)',
+        boxShadow: '0 2px 12px var(--shadow)',
+        display: 'flex', alignItems: 'center',
+        padding: '0 20px', gap: '16px', justifyContent: 'space-between',
+        position: 'relative', zIndex: 30,
+      }}>
+        <h2 style={{
+          fontFamily: '"Lora", serif', fontWeight: 700,
+          fontSize: '1rem', color: 'var(--text-primary)',
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          letterSpacing: '0.02em', margin: 0,
+        }} title={book.title}>
+          {book.title}
+        </h2>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+          <button
+            onClick={() => setShowNotes(!showNotes)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '7px',
+              padding: '5px 12px',
+              borderRadius: '6px',
+              fontFamily: '"Lora", serif', fontStyle: 'italic', fontSize: '0.8rem',
+              cursor: 'pointer',
+              border: showNotes ? '1px solid var(--border)' : '1px solid transparent',
+              background: showNotes ? 'var(--bg-tertiary)' : 'transparent',
+              color: showNotes ? 'var(--text-primary)' : 'var(--text-muted)',
+              transition: 'all 0.18s',
+              boxShadow: showNotes ? 'inset 0 1px 3px var(--shadow)' : 'none',
+            }}
+          >
+            <PenTool size={13} />
+            Notes
+          </button>
+
+          <div style={{
+            fontSize: '0.73rem', fontFamily: '"Lora", serif', fontWeight: 700,
+            color: 'var(--text-secondary)',
+            background: 'var(--bg-primary)',
+            border: '1px solid var(--border)',
+            borderRadius: '20px',
+            padding: '4px 12px',
+            letterSpacing: '0.05em',
+            boxShadow: 'inset 0 1px 3px var(--shadow)',
+          }}>
+            {percent}%
+          </div>
         </div>
       </div>
-      <div className="flex-1 overflow-hidden relative">
-        <PdfViewer book={book} />
+
+      {/* Content */}
+      <div className="flex-1 overflow-hidden flex" style={{ position: 'relative', zIndex: 20 }}>
+        <div className="flex-1 relative overflow-hidden" style={{ padding: '20px' }}>
+          <PdfViewer key={book.id} book={book} />
+        </div>
+
+        {showNotes && (
+          <div style={{
+            width: '300px', flexShrink: 0,
+            background: 'var(--bg-secondary)',
+            borderLeft: '1px solid var(--border)',
+            display: 'flex', flexDirection: 'column',
+            boxShadow: '-4px 0 20px var(--shadow)',
+            zIndex: 30, transition: 'all 0.22s',
+          }}>
+            <div style={{
+              padding: '14px 16px',
+              borderBottom: '1px solid var(--border)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              background: 'var(--bg-tertiary)',
+            }}>
+              <h3 style={{ margin: 0, fontFamily: '"Lora", serif', fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)', letterSpacing: '0.03em' }}>
+                Margin Notes
+              </h3>
+              <button
+                onClick={() => setShowNotes(false)}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  width: '26px', height: '26px', borderRadius: '5px',
+                  background: 'transparent', border: 'none', cursor: 'pointer',
+                  color: 'var(--text-muted)', transition: 'color 0.15s, background 0.15s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.color = 'var(--accent)'; e.currentTarget.style.background = 'var(--bg-primary)'; }}
+                onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'transparent'; }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <textarea
+              value={localNotes}
+              onChange={handleNotesChange}
+              onBlur={handleNotesBlur}
+              placeholder="Jot down your thoughts, quotes, or key passages… (Autosaves)"
+              className="scrollbar-vintage"
+              style={{
+                flex: 1, width: '100%', padding: '18px',
+                resize: 'none', outline: 'none',
+                background: 'transparent',
+                color: 'var(--text-primary)',
+                fontFamily: '"Lora", serif', fontSize: '0.85rem', lineHeight: 1.85,
+                border: 'none',
+              }}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

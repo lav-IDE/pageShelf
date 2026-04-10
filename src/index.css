@@ -2,8 +2,112 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap');
+
 @layer base {
-  body {
-    @apply bg-gray-50 text-gray-900;
+  :root,
+  [data-theme="light"] {
+    --bg-primary:      #F5ECD7;
+    --bg-secondary:    #EDE0C4;
+    --bg-tertiary:     #E0CEAC;
+    --bg-sidebar:      #4A2C10;
+    --surface:         #FAF3E0;
+    --text-primary:    #2C1A0E;
+    --text-secondary:  #6B4C2A;
+    --text-muted:      #9C7A52;
+    --text-on-shelf:   #F5ECD7;
+    --accent:          #8B2500;
+    --accent-hover:    #6B1C00;
+    --border:          #C9A97A;
+    --border-warm:     #C9A97A;
+    --shadow:          rgba(44, 26, 14, 0.18);
+    --shadow-card:     0 2px 8px rgba(44,26,14,0.12), 0 1px 2px rgba(44,26,14,0.08);
+    --shadow-book:     4px 6px 20px rgba(44,26,14,0.22), 1px 1px 0 rgba(0,0,0,0.06);
+    --radius-card:     8px;
   }
+
+  [data-theme="dark"] {
+    --bg-primary:      #1E1208;
+    --bg-secondary:    #271708;
+    --bg-tertiary:     #321D0A;
+    --bg-sidebar:      #160C04;
+    --surface:         #231608;
+    --text-primary:    #ECD9A8;
+    --text-secondary:  #B8934A;
+    --text-muted:      #7A5C30;
+    --text-on-shelf:   #ECD9A8;
+    --accent:          #B8390F;
+    --accent-hover:    #D4522A;
+    --border:          #3D2410;
+    --border-warm:     #3D2410;
+    --shadow:          rgba(0, 0, 0, 0.5);
+    --shadow-card:     0 2px 10px rgba(0,0,0,0.35), 0 1px 3px rgba(0,0,0,0.2);
+    --shadow-book:     6px 8px 28px rgba(0,0,0,0.55), 1px 1px 0 rgba(0,0,0,0.15);
+    --radius-card:     8px;
+  }
+
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    transition: background-color 350ms ease, color 350ms ease;
+  }
+
+  body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: "Lora", "Times New Roman", serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background: rgba(185, 134, 11, 0.28);
+  }
+}
+
+@layer utilities {
+  /* ── Scrollbar ── */
+  .scrollbar-vintage::-webkit-scrollbar { width: 4px; height: 4px; }
+  .scrollbar-vintage::-webkit-scrollbar-track { background: transparent; }
+  .scrollbar-vintage::-webkit-scrollbar-thumb {
+    background: rgba(185,134,11,0.25);
+    border-radius: 4px;
+  }
+  .scrollbar-vintage::-webkit-scrollbar-thumb:hover {
+    background: rgba(185,134,11,0.45);
+  }
+
+  /* ── Section label divider ── */
+  .shelf-divider {
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* ── Vignette on main area ── */
+  .viewer-vignette::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+  }
+  [data-theme="light"] .viewer-vignette::after {
+    background: radial-gradient(ellipse at center, transparent 55%, rgba(44,26,14,0.06) 100%);
+  }
+  [data-theme="dark"] .viewer-vignette::after {
+    background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.12) 100%);
+  }
+
+  /* ── Drag-over highlight for book-drop zones ── */
+  .drag-over {
+    background: rgba(185,134,11,0.06) !important;
+    outline: 1.5px dashed rgba(185,134,11,0.4);
+    outline-offset: -4px;
+    border-radius: 8px;
+  }
+
+  /* ── Book shadow utility ── */
+  .shadow-book { box-shadow: var(--shadow-book); }
+  .shadow-card { box-shadow: var(--shadow-card); }
 }
