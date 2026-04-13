@@ -108,6 +108,30 @@ export function PdfViewer({ book }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageNumber, pdfDoc]);
 
+  // Fullscreen zoom: +25% on enter, -25% on exit (relative to current scale at that moment)
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (document.fullscreenElement) {
+        // Entering fullscreen — bump scale by 0.25
+        setScale(s => {
+          const next = Math.min(s + 0.25, 3.0);
+          db.books.update(book.id, { zoomScale: next });
+          return next;
+        });
+      } else {
+        // Exiting fullscreen — subtract 0.25 from whatever scale is active now
+        setScale(s => {
+          const next = Math.max(s - 0.25, 0.5);
+          db.books.update(book.id, { zoomScale: next });
+          return next;
+        });
+      }
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Handle page changes
   const changePage = async (offset) => {
     if (!pdfDoc) return;
