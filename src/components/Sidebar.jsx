@@ -5,6 +5,7 @@ import { uploadBook } from '../utils/pdf';
 import { BookCard } from './BookCard';
 import { FolderItem } from './FolderItem';
 import { SettingsModal } from './SettingsModal';
+import { SortMenu, applySortBooks, applySortFolders } from './SortMenu';
 import { useStore } from '../store';
 import { Upload, Search, Plus, Settings, Sun, Moon, AlignJustify } from 'lucide-react';
 
@@ -14,7 +15,7 @@ export function Sidebar() {
 
   const fileInputRef = useRef(null);
   const [isUploading, setIsUploading] = useState(false);
-  const { sidebarOpen, toggleSidebar, theme, setTheme } = useStore();
+  const { sidebarOpen, toggleSidebar, theme, setTheme, sortBy, sortDir } = useStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
@@ -144,9 +145,16 @@ export function Sidebar() {
   const booksInFolders = activeBooks.filter(b => b.folderId != null);
   const uncategorizedBooks = activeBooks.filter(b => b.folderId == null);
 
+  // Build a map of folderId -> books[] so folder sort helpers can compute per-folder aggregates
+  const booksByFolder = {};
+  for (const f of activeFolders) booksByFolder[f.id] = booksInFolders.filter(b => b.folderId === f.id);
+
+  // Apply sort to folders
+  const sortedFolders = applySortFolders(activeFolders, booksByFolder, sortBy, sortDir);
+
   // Finished = 100% progress; Unfinished = everything else (incl. never opened)
-  const finishedBooks = uncategorizedBooks.filter(b => b.totalPages > 0 && b.currentPage >= b.totalPages);
-  const unfinishedBooks = uncategorizedBooks.filter(b => !(b.totalPages > 0 && b.currentPage >= b.totalPages));
+  const finishedBooks   = applySortBooks(uncategorizedBooks.filter(b =>  (b.totalPages > 0 && b.currentPage >= b.totalPages)), sortBy, sortDir);
+  const unfinishedBooks = applySortBooks(uncategorizedBooks.filter(b => !(b.totalPages > 0 && b.currentPage >= b.totalPages)), sortBy, sortDir);
 
   /* ── Expanded sidebar ── */
   return (
@@ -213,28 +221,31 @@ export function Sidebar() {
           </button>
           <input type="file" accept="application/pdf,.epub" ref={fileInputRef} onChange={handleFileChange} multiple className="hidden" />
 
-          {/* Search */}
-          <div style={{ position: 'relative' }}>
-            <Search size={13} style={{ position: 'absolute', left: '11px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-on-shelf)', opacity: 0.4, pointerEvents: 'none' }} />
-            <input
-              type="text"
-              placeholder="Search catalogue…"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              style={{
-                width: '100%', boxSizing: 'border-box',
-                background: 'rgba(255,255,255,0.06)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: '8px',
-                padding: '7px 12px 7px 32px',
-                fontSize: '0.78rem', fontFamily: '"Lora", serif',
-                color: 'var(--text-on-shelf)',
-                outline: 'none',
-                transition: 'border-color 0.18s, background 0.18s',
-              }}
-              onFocus={e => { e.target.style.background = 'rgba(255,255,255,0.1)'; e.target.style.borderColor = 'rgba(185,134,11,0.5)'; }}
-              onBlur={e => { e.target.style.background = 'rgba(255,255,255,0.06)'; e.target.style.borderColor = 'rgba(255,255,255,0.1)'; }}
-            />
+          {/* Search + Sort */}
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <div style={{ position: 'relative', flex: 1 }}>
+              <Search size={13} style={{ position: 'absolute', left: '11px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-on-shelf)', opacity: 0.4, pointerEvents: 'none' }} />
+              <input
+                type="text"
+                placeholder="Search catalogue…"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '8px',
+                  padding: '7px 12px 7px 32px',
+                  fontSize: '0.78rem', fontFamily: '"Lora", serif',
+                  color: 'var(--text-on-shelf)',
+                  outline: 'none',
+                  transition: 'border-color 0.18s, background 0.18s',
+                }}
+                onFocus={e => { e.target.style.background = 'rgba(255,255,255,0.1)'; e.target.style.borderColor = 'rgba(185,134,11,0.5)'; }}
+                onBlur={e => { e.target.style.background = 'rgba(255,255,255,0.06)'; e.target.style.borderColor = 'rgba(255,255,255,0.1)'; }}
+              />
+            </div>
+            <SortMenu />
           </div>
         </div>
 
@@ -301,14 +312,14 @@ export function Sidebar() {
               )}
 
               {/* ── Collections ── */}
-              {activeFolders.length > 0 && (
+              {sortedFolders.length > 0 && (
                 <div style={{ marginTop: (finishedBooks.length + unfinishedBooks.length) > 0 ? '14px' : '0' }}>
                   <SectionLabel caption="Organised shelves & reading lists">
                     Collections
                   </SectionLabel>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {activeFolders.map(folder => {
-                      const fBooks = booksInFolders.filter(b => b.folderId === folder.id);
+                    {sortedFolders.map(folder => {
+                      const fBooks = booksByFolder[folder.id] || [];
                       return <FolderItem key={folder.id} folder={folder} books={fBooks} searchQuery={searchQuery} />;
                     })}
                   </div>

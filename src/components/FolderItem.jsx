@@ -3,6 +3,7 @@ import { db } from '../db';
 import { Trash2, ChevronRight, ChevronDown } from 'lucide-react';
 import { BookCard } from './BookCard';
 import { useStore } from '../store';
+import { applySortBooks } from './SortMenu';
 
 const FOLDER_COLORS = ['#8B2500', '#1C4D35', '#1B3060', '#B8860B', '#601A24', '#2E4A6B'];
 
@@ -18,6 +19,7 @@ export function FolderItem({ folder, books, searchQuery }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const selectedBookId = useStore(s => s.selectedBookId);
+  const { sortBy, sortDir } = useStore();
   const hasActiveBook = books.some(b => b.id === selectedBookId);
 
   const handleDelete = async (e) => {
@@ -37,7 +39,10 @@ export function FolderItem({ folder, books, searchQuery }) {
     if (bookId) { await db.books.update(bookId, { folderId: folder.id }); setIsOpen(true); }
   };
 
-  const filteredBooks = books.filter(b => b.title.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredBooks = applySortBooks(
+    books.filter(b => b.title.toLowerCase().includes(searchQuery.toLowerCase())),
+    sortBy, sortDir
+  );
   const shouldOpen = isOpen || (searchQuery && filteredBooks.length > 0);
 
   if (searchQuery && filteredBooks.length === 0) return null;
