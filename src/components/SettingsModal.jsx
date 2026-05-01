@@ -74,10 +74,16 @@ export function SettingsModal({ isOpen, onClose }) {
       const dataStr = await dataFile.async('string');
       const data = JSON.parse(dataStr);
 
+      // Helper: safely coerce ISO strings back to Date objects after JSON round-trip
+      const toDate = (v) => v ? (v instanceof Date ? v : new Date(v)) : null;
+
       if (data.folders) {
         setImportProgress(p => ({ ...p, label: 'Restoring collections…' }));
         for (const f of data.folders) {
-          await db.folders.put(f);
+          await db.folders.put({
+            ...f,
+            createdAt: toDate(f.createdAt),
+          });
         }
       }
 
@@ -92,7 +98,13 @@ export function SettingsModal({ isOpen, onClose }) {
             const fileBlob = fileZipEntry ? await fileZipEntry.async('blob') : null;
             const thumbnailBlob = thumbZipEntry ? await thumbZipEntry.async('blob') : null;
             if (fileBlob) {
-              await db.books.put({ ...b, fileBlob, thumbnailBlob });
+              await db.books.put({
+                ...b,
+                fileBlob,
+                thumbnailBlob,
+                addedAt:    toDate(b.addedAt),
+                lastReadAt: toDate(b.lastReadAt),
+              });
             }
           } catch (err) {
             console.error(`Failed to import book ${b.id}`, err);

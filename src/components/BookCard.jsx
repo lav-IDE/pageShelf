@@ -15,7 +15,10 @@ function getDeterminismColor(id) {
 
 function getRelativeTime(lastReadAt) {
   if (!lastReadAt) return 'Never read';
-  const diff = Date.now() - lastReadAt.getTime();
+  // After JSON round-trip, dates come back as ISO strings — coerce defensively
+  const d = lastReadAt instanceof Date ? lastReadAt : new Date(lastReadAt);
+  if (isNaN(d.getTime())) return 'Never read';
+  const diff = Date.now() - d.getTime();
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
   if (days === 0) return 'Today';
   if (days === 1) return '1 day ago';
