@@ -7,6 +7,7 @@ import { useStore } from '../store';
 export function SettingsModal({ isOpen, onClose }) {
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState({ current: 0, total: 0, label: '' });
   const fileInputRef = useRef(null);
   const { theme, setTheme } = useStore();
 
@@ -52,35 +53,44 @@ export function SettingsModal({ isOpen, onClose }) {
   const handleImport = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     try {
       setIsImporting(true);
-      const zip = await JSZip.loadAsync(file);
-      
+      setImportProgress({ current: 0, total: 0, label: 'Reading archive…' });
+
+      const zip = await JSZip.loadAsync(file, {
+        onUpdate: (meta) => {
+          setImportProgress(p => ({ ...p, label: `Unpacking… ${meta.percent.toFixed(0)}%` }));
+        },
+      });
+
       const dataFile = zip.file('data.json');
       if (!dataFile) {
-        alert("Invalid backup file. Could not find data.json");
+        alert('Invalid backup file. Could not find data.json');
         return;
       }
-      
+
+      setImportProgress(p => ({ ...p, label: 'Reading catalogue…' }));
       const dataStr = await dataFile.async('string');
       const data = JSON.parse(dataStr);
-      
+
       if (data.folders) {
+        setImportProgress(p => ({ ...p, label: 'Restoring collections…' }));
         for (const f of data.folders) {
           await db.folders.put(f);
         }
       }
-      
+
       if (data.books) {
-        for (const b of data.books) {
+        const total = data.books.length;
+        for (let i = 0; i < total; i++) {
+          const b = data.books[i];
+          setImportProgress({ current: i + 1, total, label: `Restoring "${b.title || 'book'}"…` });
           try {
             const fileZipEntry = zip.file(`files/${b.id}`);
             const thumbZipEntry = zip.file(`thumbnails/${b.id}`);
-            
             const fileBlob = fileZipEntry ? await fileZipEntry.async('blob') : null;
             const thumbnailBlob = thumbZipEntry ? await thumbZipEntry.async('blob') : null;
-            
             if (fileBlob) {
               await db.books.put({ ...b, fileBlob, thumbnailBlob });
             }
@@ -89,12 +99,15 @@ export function SettingsModal({ isOpen, onClose }) {
           }
         }
       }
-      alert("Library successfully restored!");
+
+      setImportProgress({ current: 0, total: 0, label: '' });
+      alert('Library successfully restored!');
     } catch (err) {
       console.error('Import failed:', err);
       alert('Failed to import library. The zip file may be corrupted.');
     } finally {
       setIsImporting(false);
+      setImportProgress({ current: 0, total: 0, label: '' });
       if (e.target) e.target.value = null;
     }
   };
@@ -190,6 +203,39 @@ export function SettingsModal({ isOpen, onClose }) {
                 {isImporting ? 'Restoring archive…' : 'Restore Archive'}
               </button>
               <input type="file" accept=".zip" className="hidden" ref={fileInputRef} onChange={handleImport} />
+
+              {/* Progress indicator */}
+              {isImporting && (
+                <div style={{ marginTop: '2px' }}>
+                  <p style={{
+                    fontFamily: '"Lora", serif', fontSize: '0.74rem',
+                    color: 'var(--text-muted)', fontStyle: 'italic',
+                    marginBottom: '6px', lineHeight: 1.5,
+                  }}>
+                    {importProgress.label}
+                  </p>
+                  {importProgress.total > 0 && (
+                    <>
+                      <div style={{ height: '4px', borderRadius: '4px', background: 'var(--border)', overflow: 'hidden' }}>
+                        <div style={{
+                          height: '100%',
+                          width: `${(importProgress.current / importProgress.total) * 100}%`,
+                          background: 'var(--accent)',
+                          borderRadius: '4px',
+                          transition: 'width 0.3s ease',
+                        }} />
+                      </div>
+                      <p style={{
+                        fontFamily: '"Lora", serif', fontSize: '0.68rem',
+                        color: 'var(--text-muted)', opacity: 0.6,
+                        marginTop: '4px', textAlign: 'right',
+                      }}>
+                        {importProgress.current} / {importProgress.total}
+                      </p>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
             <p style={{ margin: '10px 0 0', fontFamily: '"Lora", serif', fontStyle: 'italic', fontSize: '0.76rem', color: 'var(--text-muted)', lineHeight: 1.7 }}>
               Create an archive of your collections to keep them safe, or restore from a previous backup.
