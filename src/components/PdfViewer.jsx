@@ -37,6 +37,8 @@ export function PdfViewer({ book }) {
   const canvas2Ref = useRef(null);
   const textLayer1Ref = useRef(null);
   const textLayer2Ref = useRef(null);
+  const textLayerInstance1Ref = useRef(null);
+  const textLayerInstance2Ref = useRef(null);
 
   const [pdfDoc, setPdfDoc] = useState(null);
   const [pageNumber, setPageNumber] = useState(book.currentPage || 1);
@@ -88,7 +90,7 @@ export function PdfViewer({ book }) {
     if (!isPortrait) setDoublePageMode(false);
   }, [isPortrait]);
 
-  const renderSinglePage = useCallback(async (num, doc, currentScale, canvasEl, taskRef, textLayerEl, onRendered) => {
+  const renderSinglePage = useCallback(async (num, doc, currentScale, canvasEl, taskRef, textLayerEl, tlInstanceRef, onRendered) => {
     if (!doc || !canvasEl) return;
     try {
       if (taskRef.current) {
@@ -110,21 +112,25 @@ export function PdfViewer({ book }) {
       taskRef.current = task;
       await task.promise;
 
-      // Render text layer for text selection
-      if (textLayerEl) {
+      // Render text layer for text selection (pdfjs-dist v4+ uses TextLayer class)
+      if (textLayerEl && pdfjsLib.TextLayer) {
+        if (tlInstanceRef?.current) {
+          tlInstanceRef.current.cancel();
+          tlInstanceRef.current = null;
+        }
         textLayerEl.innerHTML = '';
         textLayerEl.style.width = `${viewport.width}px`;
         textLayerEl.style.height = `${viewport.height}px`;
         try {
-          const renderTask = pdfjsLib.renderTextLayer({
+          const tl = new pdfjsLib.TextLayer({
             textContentSource: page.streamTextContent(),
             container: textLayerEl,
             viewport,
           });
-          await renderTask.promise;
+          if (tlInstanceRef) tlInstanceRef.current = tl;
+          await tl.render();
         } catch (e) {
-          // Text layer is optional — rendering still works without it
-          console.warn('Text layer skipped:', e);
+          console.warn('Text layer render failed:', e);
         }
       }
 
@@ -142,18 +148,20 @@ export function PdfViewer({ book }) {
   useEffect(() => {
     if (!pdfDoc) return;
     if (doublePageMode) {
-      renderSinglePage(pageNumber, pdfDoc, scale, canvasRef.current, renderTaskRef, textLayer1Ref.current, setCanvas1Dark);
+      renderSinglePage(pageNumber, pdfDoc, scale, canvasRef.current, renderTaskRef, textLayer1Ref.current, textLayerInstance1Ref, setCanvas1Dark);
       if (pageNumber + 1 <= pdfDoc.numPages) {
-        renderSinglePage(pageNumber + 1, pdfDoc, scale, canvas2Ref.current, renderTask2Ref, textLayer2Ref.current, setCanvas2Dark);
+        renderSinglePage(pageNumber + 1, pdfDoc, scale, canvas2Ref.current, renderTask2Ref, textLayer2Ref.current, textLayerInstance2Ref, setCanvas2Dark);
       } else {
         const c = canvas2Ref.current;
         if (c) { c.width = 0; c.height = 0; c.style.width = '0'; c.style.height = '0'; }
+        if (textLayerInstance2Ref.current) { textLayerInstance2Ref.current.cancel(); textLayerInstance2Ref.current = null; }
         if (textLayer2Ref.current) textLayer2Ref.current.innerHTML = '';
         setCanvas2Dark(false);
       }
     } else {
       if (renderTask2Ref.current) { renderTask2Ref.current.cancel(); renderTask2Ref.current = null; }
-      renderSinglePage(pageNumber, pdfDoc, scale, canvasRef.current, renderTaskRef, textLayer1Ref.current, setCanvas1Dark);
+      if (textLayerInstance2Ref.current) { textLayerInstance2Ref.current.cancel(); textLayerInstance2Ref.current = null; }
+      renderSinglePage(pageNumber, pdfDoc, scale, canvasRef.current, renderTaskRef, textLayer1Ref.current, textLayerInstance1Ref, setCanvas1Dark);
       setCanvas2Dark(false);
     }
   }, [pdfDoc, pageNumber, scale, doublePageMode, renderSinglePage]);
