@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStore } from '../store';
 import { db } from '../db';
 import { Trash2, Clock, Book, Pencil, Check, X } from 'lucide-react';
@@ -69,9 +69,12 @@ export function BookCard({ book }) {
 
   const percent = book.totalPages > 0 ? Math.round((book.currentPage / book.totalPages) * 100) : 0;
 
-  const thumbnailUrl = React.useMemo(() => {
-    if (!book.thumbnailBlob) return null;
-    return URL.createObjectURL(book.thumbnailBlob);
+  const [thumbnailUrl, setThumbnailUrl] = useState(null);
+  useEffect(() => {
+    if (!book.thumbnailBlob) { setThumbnailUrl(null); return; }
+    const url = URL.createObjectURL(book.thumbnailBlob);
+    setThumbnailUrl(url);
+    return () => URL.revokeObjectURL(url);
   }, [book.thumbnailBlob]);
 
   const handleDragStart = (e) => e.dataTransfer.setData('bookId', book.id);

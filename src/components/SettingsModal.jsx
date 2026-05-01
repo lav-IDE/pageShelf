@@ -74,6 +74,11 @@ export function SettingsModal({ isOpen, onClose }) {
       const dataStr = await dataFile.async('string');
       const data = JSON.parse(dataStr);
 
+      if (!data || typeof data !== 'object' || !Array.isArray(data.books)) {
+        alert('Invalid backup format — the data.json inside the zip is not a valid PageShelf export.');
+        return;
+      }
+
       // Helper: safely coerce ISO strings back to Date objects after JSON round-trip
       const toDate = (v) => v ? (v instanceof Date ? v : new Date(v)) : null;
 
