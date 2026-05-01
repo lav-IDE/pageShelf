@@ -133,7 +133,7 @@ export function BookCard({ book }) {
       </div>
 
       {/* Info */}
-      <div style={{ flex: 1, minWidth: 0, padding: '9px 36px 9px 10px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '4px' }}>
+      <div style={{ flex: 1, minWidth: 0, padding: '9px 68px 9px 10px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '4px' }}>
         {isRenaming ? (
           /* ── Rename input ── */
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }} onClick={e => e.stopPropagation()}>

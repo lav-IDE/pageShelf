@@ -187,14 +187,11 @@ export function Sidebar() {
           <h1 style={{
             fontFamily: '"Lora", serif', fontWeight: 700,
             fontSize: '1.45rem', color: 'var(--text-on-shelf)',
-            letterSpacing: '0.04em', marginBottom: '2px',
+            letterSpacing: '0.04em', marginBottom: '16px',
             paddingRight: '36px', /* room for hamburger */
           }}>
             PageShelf
           </h1>
-          <p style={{ fontFamily: '"Lora", serif', fontStyle: 'italic', fontSize: '0.72rem', color: 'var(--text-on-shelf)', opacity: 0.45, marginBottom: '16px' }}>
-            Your reading room
-          </p>
 
           {/* Upload button */}
           <button
