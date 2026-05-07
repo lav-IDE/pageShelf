@@ -3,6 +3,7 @@ import { Sidebar } from './components/Sidebar';
 import { MainArea } from './components/MainArea';
 import { useStore } from './store';
 import { db } from './db';
+import { Analytics } from '@vercel/analytics/react';
 
 function App() {
   const [loading, setLoading] = useState(true);
@@ -34,6 +35,7 @@ function App() {
     <div className="flex h-screen bg-parchment-100 dark:bg-wood-900 overflow-hidden text-wood-900 dark:text-parchment-100 font-sans selection:bg-gold-500/30">
       <Sidebar />
       <MainArea />
+      <Analytics />
     </div>
   );
 }
