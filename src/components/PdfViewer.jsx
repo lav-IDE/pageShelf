@@ -172,6 +172,13 @@ export function PdfViewer({ book }) {
       if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable) return;
       if (e.key === 'ArrowRight') { e.preventDefault(); changePage(doublePageMode ? 2 : 1); }
       else if (e.key === 'ArrowLeft') { e.preventDefault(); changePage(doublePageMode ? -2 : -1); }
+      // f → toggle fullscreen
+      else if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        const el = document.getElementById('main-area') || containerRef.current;
+        if (document.fullscreenElement) document.exitFullscreen();
+        else el?.requestFullscreen();
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);

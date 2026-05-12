@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useStore } from '../store';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
@@ -25,6 +25,23 @@ export function MainArea() {
       db.books.update(book.id, { notes: localNotes });
     }
   };
+
+  // ── Shortcut: n → toggle notes panel ─────────────────────────────────
+  const handleKeys = useCallback((e) => {
+    if (!book) return;
+    const tag = document.activeElement?.tagName;
+    const inInput = tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable;
+    if (inInput) return;
+    if (e.key === 'n' || e.key === 'N') {
+      e.preventDefault();
+      setShowNotes((v) => !v);
+    }
+  }, [book]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeys);
+    return () => window.removeEventListener('keydown', handleKeys);
+  }, [handleKeys]);
 
   if (!selectedBookId || !book) {
     return (
