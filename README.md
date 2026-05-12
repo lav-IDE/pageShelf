@@ -1,6 +1,8 @@
 # PageShelf
 
-A local-first, privacy-respecting PDF reader that lives entirely in your browser. No accounts, no cloud uploads — your books stay on your machine.
+[![Live on Vercel](https://img.shields.io/badge/Live%20Demo-page--shelf.vercel.app-black?logo=vercel&logoColor=white)](https://page-shelf.vercel.app/)
+
+A local-first, privacy-respecting PDF reader that lives entirely in your browser. No accounts, no cloud uploads — your books stay on your machine. Try it instantly at **[page-shelf.vercel.app](https://page-shelf.vercel.app/)**.
 
 ---
 
@@ -32,7 +34,7 @@ A local-first, privacy-respecting PDF reader that lives entirely in your browser
 - **Day / Night theme** toggle (defaults to night)
 - **Collapsible sidebar** — collapses to a slim icon bar; Settings remain accessible in either state
 - **Backup & Restore** — export your entire library (books + notes + progress + folders) as a `.zip` archive and restore it at any time via Settings
-- **Fully offline** — all data stored in IndexedDB via Dexie; zero network requests after initial page load
+- **Fully offline after load** — all data stored in IndexedDB via Dexie; zero network requests during a reading session. The app is hosted on Vercel but every book, note, and progress entry lives exclusively in your browser.
 
 ---
 
@@ -78,12 +80,30 @@ Windows users can also double-click **`Start_PageShelf.bat`** to launch the dev 
 
 ---
 
+## Deployment
+
+PageShelf is deployed on [Vercel](https://vercel.com) and available at:
+
+> **<https://page-shelf.vercel.app/>**
+
+Vercel is configured via [`vercel.json`](./vercel.json) with a single SPA rewrite rule so that all routes fall through to `index.html`. To deploy your own fork:
+
+```bash
+npm i -g vercel
+vercel --prod
+```
+
+---
+
 ## Keyboard Shortcuts
 
 | Key | Action |
 |---|---|
 | `→` | Next page (advances by 2 in double-page mode) |
 | `←` | Previous page (retreats by 2 in double-page mode) |
+| `Shift+T` | Toggle between day/night mode |
+| `F` | Toggle fullscreen mode |
+| `N` | Toggle Notes panel |
 
 > Arrow keys are suppressed when focus is inside a text input (e.g. the page-number field or the Notes panel).
 
