@@ -5,9 +5,43 @@ import { uploadBook } from '../utils/pdf';
 import { BookCard } from './BookCard';
 import { FolderItem } from './FolderItem';
 import { SettingsModal } from './SettingsModal';
-import { SortMenu, applySortBooks, applySortFolders } from './SortMenu';
+import { SortMenu } from './SortMenu';
+import { applySortBooks, applySortFolders } from '../utils/sortUtils';
 import { useStore } from '../store';
 import { Upload, Search, Plus, Settings, Sun, Moon, AlignJustify } from 'lucide-react';
+
+/* ── Hamburger toggle button — declared at module scope to avoid
+   react-hooks/static-components: components must not be created during render ── */
+function HamburgerBtn({ onClick, sidebarOpen }) {
+  return (
+    <button
+      onClick={onClick}
+      title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+      style={{
+        position: 'absolute',
+        top: '14px',
+        right: '12px',
+        zIndex: 60,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '30px',
+        height: '30px',
+        borderRadius: '6px',
+        background: 'transparent',
+        border: 'none',
+        cursor: 'pointer',
+        color: 'var(--text-on-shelf)',
+        opacity: 0.65,
+        transition: 'opacity 0.2s, background 0.2s',
+      }}
+      onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
+      onMouseLeave={e => { e.currentTarget.style.opacity = '0.65'; e.currentTarget.style.background = 'transparent'; }}
+    >
+      <AlignJustify size={17} strokeWidth={2} />
+    </button>
+  );
+}
 
 export function Sidebar() {
   const books = useLiveQuery(() => db.books.orderBy('lastReadAt').reverse().toArray());
@@ -64,36 +98,6 @@ export function Sidebar() {
 
   const toggleSwitchTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark');
 
-  /* ── Hamburger toggle button — always rendered, absolutely positioned ── */
-  const HamburgerBtn = () => (
-    <button
-      onClick={toggleSidebar}
-      title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
-      style={{
-        position: 'absolute',
-        top: '14px',
-        right: '12px',
-        zIndex: 60,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: '30px',
-        height: '30px',
-        borderRadius: '6px',
-        background: 'transparent',
-        border: 'none',
-        cursor: 'pointer',
-        color: 'var(--text-on-shelf)',
-        opacity: 0.65,
-        transition: 'opacity 0.2s, background 0.2s',
-      }}
-      onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
-      onMouseLeave={e => { e.currentTarget.style.opacity = '0.65'; e.currentTarget.style.background = 'transparent'; }}
-    >
-      <AlignJustify size={17} strokeWidth={2} />
-    </button>
-  );
-
   /* ── Collapsed sidebar ── */
   if (!sidebarOpen) {
     return (
@@ -114,7 +118,7 @@ export function Sidebar() {
             boxShadow: '2px 0 16px rgba(0,0,0,0.35)',
           }}
         >
-          <HamburgerBtn />
+          <HamburgerBtn onClick={toggleSidebar} sidebarOpen={sidebarOpen} />
 
           {/* Settings icon centred in collapsed bar */}
           <div style={{ marginTop: 'auto' }}>
@@ -180,7 +184,7 @@ export function Sidebar() {
           backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 14px, rgba(255,255,255,0.012) 14px, rgba(255,255,255,0.012) 15px)',
         }} />
 
-        <HamburgerBtn />
+        <HamburgerBtn onClick={toggleSidebar} sidebarOpen={sidebarOpen} />
 
         {/* Header */}
         <div style={{ padding: '20px 20px 14px', position: 'relative', zIndex: 1 }}>

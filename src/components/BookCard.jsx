@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, startTransition } from 'react';
 import { useStore } from '../store';
 import { db } from '../db';
 import { Trash2, Clock, Book, Pencil, Check, X } from 'lucide-react';
@@ -71,11 +71,15 @@ export function BookCard({ book }) {
 
   const [thumbnailUrl, setThumbnailUrl] = useState(null);
   useEffect(() => {
-    if (!book.thumbnailBlob) { setThumbnailUrl(null); return; }
+    if (!book.thumbnailBlob) {
+      startTransition(() => setThumbnailUrl(null));
+      return;
+    }
     const url = URL.createObjectURL(book.thumbnailBlob);
-    setThumbnailUrl(url);
+    startTransition(() => setThumbnailUrl(url));
     return () => URL.revokeObjectURL(url);
   }, [book.thumbnailBlob]);
+
 
   const handleDragStart = (e) => e.dataTransfer.setData('bookId', book.id);
 

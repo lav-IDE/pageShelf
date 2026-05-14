@@ -2,14 +2,12 @@ import React, { useRef, useState } from 'react';
 import JSZip from 'jszip';
 import { db } from '../db';
 import { DownloadCloud, UploadCloud, X, Settings } from 'lucide-react';
-import { useStore } from '../store';
 
 export function SettingsModal({ isOpen, onClose }) {
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0, label: '' });
   const fileInputRef = useRef(null);
-  const { theme, setTheme } = useStore();
 
   if (!isOpen) return null;
 

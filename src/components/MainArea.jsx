@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, startTransition } from 'react';
 import { useStore } from '../store';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
@@ -16,8 +16,8 @@ export function MainArea() {
   const [localNotes, setLocalNotes] = useState('');
 
   useEffect(() => {
-    if (book) setLocalNotes(book.notes || '');
-  }, [book?.id]);
+    if (book) startTransition(() => setLocalNotes(book.notes || ''));
+  }, [book]);
 
   const handleNotesChange = (e) => setLocalNotes(e.target.value);
   const handleNotesBlur = () => {

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
+import 'pdfjs-dist/web/pdf_viewer.css';
 import { db } from '../db';
 import { useStore } from '../store';
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize, FileText, BookOpen } from 'lucide-react';
@@ -53,23 +54,20 @@ export function PdfViewer({ book }) {
   const theme = useStore((s) => s.theme);
   const [doublePageMode, setDoublePageMode] = useState(false);
   const [isPortrait, setIsPortrait] = useState(false);
-  const [fileUrl, setFileUrl] = useState(null);
+  // Use a ref for the blob URL — we only need it as an input to the load
+  // effect below; no render is required when it changes, so a ref avoids the
+  // react-hooks/set-state-in-effect lint error.
+  const fileUrlRef = useRef(null);
 
   useEffect(() => {
     if (!book.fileBlob) return;
     const url = URL.createObjectURL(book.fileBlob);
-    setFileUrl(url);
-    return () => URL.revokeObjectURL(url);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (!fileUrl) return;
+    fileUrlRef.current = url;
     let active = true;
     const loadPdf = async () => {
       try {
         setPdfError(null);
-        const pdf = await pdfjsLib.getDocument(fileUrl).promise;
+        const pdf = await pdfjsLib.getDocument(url).promise;
         if (!active) return;
         setPdfDoc(pdf);
         setPageNumber(book.currentPage || 1);
@@ -82,9 +80,15 @@ export function PdfViewer({ book }) {
       }
     };
     loadPdf();
-    return () => { active = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fileUrl]);
+    return () => {
+      active = false;
+      URL.revokeObjectURL(url);
+      fileUrlRef.current = null;
+    };
+  // book.fileBlob is stable for the lifetime of this component instance
+  // (PdfViewer is keyed by book.id, so it remounts on book change).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!isPortrait) setDoublePageMode(false);
@@ -324,14 +328,14 @@ export function PdfViewer({ book }) {
               </div>
             )}
             <canvas ref={canvasRef} style={{ display: 'block', verticalAlign: 'top', filter: getCanvasFilter(canvas1Dark), transition: 'filter 300ms ease' }} />
-            <div ref={textLayer1Ref} className="pdf-text-layer" />
+            <div ref={textLayer1Ref} className="textLayer" />
           </div>
 
           {/* Right canvas — double-page mode only */}
           {doublePageMode && (
             <div style={{ position: 'relative', boxShadow: '0 8px 40px rgba(0,0,0,0.35)', borderRadius: '0 2px 2px 0', borderLeft: '1px solid rgba(0,0,0,0.18)' }}>
               <canvas ref={canvas2Ref} style={{ display: 'block', verticalAlign: 'top', filter: getCanvasFilter(canvas2Dark), transition: 'filter 300ms ease' }} />
-              <div ref={textLayer2Ref} className="pdf-text-layer" />
+              <div ref={textLayer2Ref} className="textLayer" />
             </div>
           )}
         </div>
@@ -339,39 +343,6 @@ export function PdfViewer({ book }) {
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
-
-        /* PDF.js text layer — transparent spans positioned over the canvas for selection */
-        .pdf-text-layer {
-          position: absolute;
-          top: 0; left: 0;
-          overflow: hidden;
-          line-height: 1;
-          text-size-adjust: none;
-          forced-color-adjust: none;
-          transform-origin: 0 0;
-          z-index: 2;
-          pointer-events: auto;
-          user-select: text;
-        }
-        .pdf-text-layer :is(span, br) {
-          color: transparent;
-          position: absolute;
-          white-space: pre;
-          cursor: text;
-          transform-origin: 0% 0%;
-        }
-        .pdf-text-layer ::selection {
-          background: rgba(100, 160, 255, 0.35);
-          color: transparent;
-        }
-        .pdf-text-layer .endOfContent {
-          display: block;
-          position: absolute;
-          inset: 100% 0 0;
-          z-index: -1;
-          cursor: default;
-          user-select: none;
-        }
       `}</style>
     </div>
   );
